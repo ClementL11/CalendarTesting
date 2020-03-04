@@ -2,11 +2,17 @@ import com.google.api.client.util.DateTime;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.Scanner;
 
 public class Validation {
 
+
+    public static String convertLocalDateToUKFormat(LocalDate date) {
+        return date.toString().substring(8) + "/"  + date.toString().substring(5, 7) + "/" +
+                date.toString().substring(0, 4);
+    }
     /**
      * Converts a Google DateTime formatted date into a UK style date in format dd/MM/yyyy.
      *
@@ -53,6 +59,23 @@ public class Validation {
         DateFormat format = new SimpleDateFormat("dd/MM/yyyy");
         format.setLenient(false);
         format.parse(date);
+    }
+
+    /**
+     * Checks if an input date is valid. If not it throws an exception.
+     *
+     * @param date a String of a date which should be as dd/MM/yyyy
+     * @throws ParseException if date incorrectly formatted.
+     */
+    public static boolean isValidDate(String date) throws ParseException {
+        try {
+            DateFormat format = new SimpleDateFormat("dd/MM/yyyy");
+            format.setLenient(false);
+            format.parse(date);
+            return true;
+        } catch(Exception e) {
+            return false;
+        }
     }
 
     /**
@@ -117,17 +140,17 @@ public class Validation {
      *
      * @return delivery officer who has logged in successfully or if not, returns null.
      */
-    public static DeliveryOfficer logIn(){
+    public static Staff logIn(){
         Scanner scanner = new Scanner(System.in);
-        DeliveryOfficer.printAllStaff();
+        Staff.printAllStaff();
         System.out.println("X)\tQuit");
         System.out.println("Please select your name:");
         String chosenName = scanner.nextLine().trim();
         if (chosenName.toUpperCase().equals("X")) {
             System.out.println("Thanks for using our System. Shutting Down.");
             System.exit(0);
-        } else if (DeliveryOfficer.staffMemberExists(chosenName)) {
-            DeliveryOfficer staffMember = DeliveryOfficer.findStaffMember(chosenName);
+        } else if (Staff.staffMemberExists(chosenName)) {
+            Staff staffMember = Staff.findStaffMember(chosenName);
 
             System.out.println("\nWelcome " + staffMember.getName() + "!");
             return staffMember;
