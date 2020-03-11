@@ -1,4 +1,5 @@
 import com.google.api.client.util.DateTime;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.text.DateFormat;
@@ -30,11 +31,14 @@ public class Main {
      * @throws IOException              if text file of Staff member details does not exist.
      * @throws GeneralSecurityException if issue with Google Calendar API credentials.
      */
-    public static void main(String... args) throws IOException, GeneralSecurityException, ParseException {
+    public static void main(String... args) throws IOException, GeneralSecurityException {
         //test();
 
         Staff.populateStaffList();
         CalendarQuickstart.getEventsFromCalendar(startingDate, calendarEmail);
+        for (Staff staff : Staff.getAllStaffList()) {
+            CalendarQuickstart.getIndividualUnavailability(getStartingDate(), staff, staff.getEmail());
+        }
         System.out.println();
         userInterface();
     }
@@ -52,12 +56,8 @@ public class Main {
                 memberExists = false;
                 System.out.println("\nNot a valid choice!\n");
             } else {
-                try {
-
                     mainMenu(user, user.getAdminPrivileges());
-                } catch (Exception e) {
-                    System.out.println("Error in main menu code!");
-                }
+
             }
         } while (!memberExists);
 
@@ -66,8 +66,15 @@ public class Main {
     /**
      * This method is used for testing individual methods when needed.
      */
-    private static void test() throws ParseException {
-        Staff.getNumberOfEventsForWeek("Luke Clement", "29/03/2020");
+    private static void test() throws IOException {
+        Staff.populateStaffList();
+
+        userInterface();
+
+        for (TechnocampsEvent event : TechnocampsEvent.getAllEvents()) {
+            System.out.println(event.toString());
+        }
+
 
     }
 
@@ -82,7 +89,7 @@ public class Main {
         try {
 
             System.out.print("*******************************************************************\n" +
-                    "1) View All Upcoming Events from Shared Calendar \n2) View Individual Staff Events\n" +
+                    "1) View All Events from Shared Calendar \n2) View Individual Staff Events\n" +
                     "3) Find Available Delivery Officers for Specific Date\n" +
                     "4) Find Number of Events of All Staff\n");
             if (adminPrivileges) {
@@ -141,15 +148,22 @@ public class Main {
         System.out.print("*******************************************************************\n" +
                 "Would you like to: \n" +
                 "1) View all Events from Shared Calendar\n" +
-                "2) View Events between given Dates\n" +
+                "2) View all Future Events from Shared Calendar\n" +
+                "3) View Events between given Dates\n" +
+                "4) View Events in a Chosen Month\n" +
                 "*******************************************************************\n");
         response = scanner.nextLine().trim();
         switch (response) {
             case "1":
-                System.out.println("\nAll Upcoming Events: \n");
+                System.out.println("\nAll Events: \n");
                 TechnocampsEvent.printAllEvents();
                 break;
             case "2":
+                DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+                Date todayDate = new Date();
+                TechnocampsEvent.printAllEvents(dateFormat.format(todayDate));
+                break;
+            case "3":
                 String startDate = null;
                 String endDate = null;
                 boolean validDate;
@@ -186,12 +200,18 @@ public class Main {
                             }
                         }
                     } while (!validDate);
-                    if (endDate == null){
+                    if (endDate == null) {
                         TechnocampsEvent.printAllEvents(startDate);
                     } else {
                         TechnocampsEvent.printAllEvents(startDate, endDate);
                     }
                 }
+                break;
+            case "4":
+                ArrayList<String> dates = TechnocampsEvent.searchByMonth();
+                String startDateMonth = dates.get(0);
+                String endDateMonth = dates.get(1);
+                TechnocampsEvent.printAllEvents(startDateMonth, endDateMonth);
                 break;
             case "":
                 break;
@@ -240,7 +260,7 @@ public class Main {
         System.out.println();
         switch (response) {
             case "1": {
-                String startDate = Validation.convertDateTimeToUKFormat(startingDate);
+                String startDate = Validation.convertDateTimeToUKFormat(getStartingDate());
                 Staff.printStaffEventLists(chosenStaffMember.getName(), startDate);
                 break;
             }
@@ -439,8 +459,8 @@ public class Main {
                 validName = false;
             }
         } while (!validName);
-        System.out.print("Chosen Staff Member: " + chosenStaffMemberName);
         Staff chosenStaffMember = Staff.findStaffMember(chosenStaffMemberName);
+        System.out.print("Chosen Staff Member: " + chosenStaffMember.getName());
         System.out.print("\n*******************************************************************\n" + "Would you " +
                 "like to\n" +
                 "1) Edit Name \n" +
@@ -602,6 +622,7 @@ public class Main {
                         System.out.println("You cannot delete yourself!");
                     } else {
                         Validation.confirmChoice("Delete " + officerToDelete.getName());
+                        System.out.println(officerToDelete.getName() + " successfully removed.");
                         Staff.removeStaffMember(officerToDelete);
                     }
                     break;

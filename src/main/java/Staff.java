@@ -1,16 +1,14 @@
 import com.google.api.client.util.DateTime;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import static java.time.temporal.TemporalAdjusters.nextOrSame;
-import static java.time.temporal.TemporalAdjusters.previousOrSame;
-import static java.time.temporal.TemporalAdjusters.previous;
-import static java.time.temporal.TemporalAdjusters.next;
-
 import java.util.*;
+
+import static java.time.temporal.TemporalAdjusters.*;
 
 public class Staff {
 
@@ -240,7 +238,8 @@ public class Staff {
         } else {
             for (TechnocampsEvent event : getAllEvents(name, startDate)) {
                 String eventType = event.getEventType();
-                if (eventType.equals("Workshop") || eventType.equals("Technoclub") || eventType.equals("Technoteach")) {
+                if (eventType.equals("Workshop") || eventType.equals("Technoclub") || eventType.equals("Technoteach")
+                        || eventType.equals("AL") || eventType.equals("Unavailable")) {
                     event.printOfficerEventDetails();
                 }
             }
@@ -263,7 +262,8 @@ public class Staff {
         } else {
             for (TechnocampsEvent event : getAllEvents(name, startDate, endDate)) {
                 String eventType = event.getEventType();
-                if (eventType.equals("Workshop") || eventType.equals("Technoclub") || eventType.equals("Technoteach")) {
+                if (eventType.equals("Workshop") || eventType.equals("Technoclub") || eventType.equals("Technoteach") || eventType.equals("AL")
+                        || eventType.equals("Unavailable")) {
                     event.printOfficerEventDetails();
                 }
             }
@@ -391,7 +391,6 @@ public class Staff {
      * Gets the officer number of all events since the calendar starting date.
      *
      * @return an int of the number of events for the delivery officer.
-     * @throws ParseException when date entered isn't formatted correctly.
      */
     private int getOfficerNumberOfEvents() {
         double counter = 0.0;
@@ -499,6 +498,9 @@ public class Staff {
                         if (staff.getName().equals(availableOfficer.getName())) {
                             availableOfficers.remove(availableOfficer);
                         }
+                        if (!availableOfficer.isDeliveryOfficer()) {
+                            availableOfficers.remove(availableOfficer);
+                        }
                     }
                 }
             }
@@ -513,7 +515,7 @@ public class Staff {
             }
         }
         System.out.println();
-        recommendOfficerForWorkshop(date);
+        recommendOfficerForWorkshop(date, availableOfficers);
     }
 
     /**
@@ -522,8 +524,7 @@ public class Staff {
      * @throws IOException if issues with reading from staff details text file.
      */
     public static void populateStaffList() throws IOException {
-        File staffFile = new File("/Users/lukeclement/ownCloud/Luke_Clement/DA/Programming 2" +
-                "/CalendarTesting/src/Staff.txt");
+        File staffFile = new File("src/Staff.txt");
         Scanner readFile = new Scanner(staffFile);
         while (readFile.hasNextLine()) {
             ArrayList<String> line = new ArrayList<>(Arrays.asList(readFile.nextLine().split(",")));
@@ -735,7 +736,7 @@ public class Staff {
      */
     public static void updateStaffInformation() throws IOException {
         FileWriter outputToFile = new FileWriter
-                ("/Users/lukeclement/ownCloud/Luke_Clement/DA/Programming 2/CalendarTesting/src/Staff.txt");
+                ("src/Staff.txt");
         int counter = 0;
         for (Staff officer : allStaff) {
             outputToFile.write(officer.getName() + ", " + officer.getEmail() + ", " + officer.getTimeCommitment()
@@ -884,33 +885,44 @@ public class Staff {
     }
 
     /**
-     * Recommends a deliveryOfficer for a workshop based on the number of events that week. If two or more delivery
+     * Recommends delivery officers for a workshop based on the number of events that week. If two or more delivery
      * Officers have the same amount of events that week, then their monthly number compared to the average is
-     * considered.
+     * considered, if everything is equal it recommends multiple officers to pick from.
      *
      * @param date date in the format (dd/mm/yyyy).
      * @throws ParseException if date incorrectly formatted.
      */
-    public static void recommendOfficerForWorkshop(String date) throws ParseException {
-        Staff leastEvents = getAllStaffList().get(0);
+    public static void recommendOfficerForWorkshop(String date, ArrayList<Staff> available) throws ParseException {
+        ArrayList<Staff> recommendedOfficers = new ArrayList<>();
+        Staff leastEvents = available.get(0);
         double currentEvents;
-        double smallest = getAllStaffList().get(0).getOfficerNumberOfEvents(date);
-        for (Staff s : allStaff) {
+        double smallest = getNumberOfEventsForWeek(leastEvents, date);
+        for (Staff s : available) {
             if (s.isDeliveryOfficer()) {
                 currentEvents = getNumberOfEventsForWeek(s, date);
                 if (smallest > currentEvents) {
                     smallest = currentEvents;
                     leastEvents = s;
+                    recommendedOfficers.clear();
+                    recommendedOfficers.add(leastEvents);
+
                 } else if (smallest == currentEvents) {
-                    if (s.getEventsComparedToAverageForMonth(s, date) < leastEvents.getEventsComparedToAverageForMonth(s, date))
+                    if (s.getEventsComparedToAverageForMonth(s, date) < leastEvents.getEventsComparedToAverageForMonth(leastEvents, date)) {
+                        recommendedOfficers.clear();
+                        recommendedOfficers.add(s);
                         leastEvents = s;
+                    } else if (s.getEventsComparedToAverageForMonth(s, date) == leastEvents.getEventsComparedToAverageForMonth(leastEvents, date)) {
+                        recommendedOfficers.add(s);
+                    }
                 }
             }
         }
-        System.out.println("Recommended Officer | Events that Week | Compared to Average for Surrounding Month");
-        System.out.printf("%-25s\t %-15s %20s", leastEvents.getName(),
-                getNumberOfEventsForWeek(leastEvents.getName(), date),
-                leastEvents.getEventsComparedToAverageForMonth(leastEvents.getName(), date));
+        System.out.println("Recommended Officer | Events that Week | Compared to Average for -2 weeks + 2 weeks");
+        for (Staff recommended : recommendedOfficers) {
+            System.out.printf("%-25s\t %-15s %20s\n", recommended.getName(),
+                    getNumberOfEventsForWeek(recommended.getName(), date),
+                    leastEvents.getEventsComparedToAverageForMonth(recommended.getName(), date));
+        }
     }
 }
 
